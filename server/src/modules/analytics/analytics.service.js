@@ -91,9 +91,6 @@ export function resolveDateFilter(period = '30d', customStart = null, customEnd 
   return { start, end, prevStart, prevEnd };
 }
 
-/**
- * Calculates percentage growth safely
- */
 function calculateGrowth(current, previous) {
   const curr = Number(current) || 0;
   const prev = Number(previous) || 0;
@@ -103,72 +100,107 @@ function calculateGrowth(current, previous) {
   return Number((((curr - prev) / prev) * 100).toFixed(2));
 }
 
-/**
- * Formats a decimal/number to 2 decimal places
- */
 function roundMoney(val) {
   return Number((Number(val) || 0).toFixed(2));
 }
 
 /**
- * 1. OVERVIEW METRICS
+ * 1. OVERVIEW METRICS (with separate revenue collected, total invoiced, outstanding, and derived overdue)
  */
 export async function getOverviewMetrics(query = {}) {
-  const { period = '30d', startDate, endDate } = query;
+  const { period = '30d', startDate, endDate, customer_id, plan_id, invoice_status } = query;
   const { start, end, prevStart, prevEnd } = resolveDateFilter(period, startDate, endDate);
+  const now = new Date();
 
-  // 1. Total Customers & New in Period
+  // Scope filters
+  const customerWhere = customer_id ? { id: customer_id } : {};
+  const subscriptionWhere = {};
+  if (customer_id) subscriptionWhere.customer_id = customer_id;
+  if (plan_id) subscriptionWhere.plan_id = plan_id;
+
+  // 1. Customer Counts
   const [totalCustomers, newCustomersInPeriod, newCustomersPrevPeriod] = await Promise.all([
-    prisma.customer.count(),
+    prisma.customer.count({ where: customerWhere }),
     prisma.customer.count({
-      where: { created_at: { gte: start, lte: end } },
+      where: {
+        ...customerWhere,
+        created_at: { gte: start, lte: end },
+      },
     }),
     prisma.customer.count({
-      where: { created_at: { gte: prevStart, lte: prevEnd } },
+      where: {
+        ...customerWhere,
+        created_at: { gte: prevStart, lte: prevEnd },
+      },
     }),
   ]);
 
-  // 2. Subscriptions
+  // 2. Active Subscriptions
   const [activeSubscriptions, prevActiveSubscriptionsCount] = await Promise.all([
     prisma.subscription.count({
-      where: { status: 'ACTIVE' },
+      where: { ...subscriptionWhere, status: 'ACTIVE' },
     }),
     prisma.subscription.count({
       where: {
+        ...subscriptionWhere,
         status: 'ACTIVE',
         created_at: { lte: prevEnd },
       },
     }),
   ]);
 
-  // 3. Revenue from Payments
-  const [allTimeRevenueAgg, periodRevenueAgg, prevPeriodRevenueAgg] = await Promise.all([
+  // 3. Revenue Collected (sum of actual payments)
+  const paymentWhere = { payment_date: { gte: start, lte: end } };
+  if (customer_id) paymentWhere.invoice = { customer_id };
+
+  const prevPaymentWhere = { payment_date: { gte: prevStart, lte: prevEnd } };
+  if (customer_id) prevPaymentWhere.invoice = { customer_id };
+
+  const allTimePaymentWhere = customer_id ? { invoice: { customer_id } } : {};
+
+  const [allTimePaymentAgg, periodPaymentAgg, prevPeriodPaymentAgg] = await Promise.all([
     prisma.payment.aggregate({
+      where: allTimePaymentWhere,
       _sum: { amount: true },
     }),
     prisma.payment.aggregate({
-      where: { payment_date: { gte: start, lte: end } },
+      where: paymentWhere,
       _sum: { amount: true },
     }),
     prisma.payment.aggregate({
-      where: { payment_date: { gte: prevStart, lte: prevEnd } },
+      where: prevPaymentWhere,
       _sum: { amount: true },
     }),
   ]);
 
-  const allTimeRevenue = roundMoney(allTimeRevenueAgg._sum.amount);
-  const periodRevenue = roundMoney(periodRevenueAgg._sum.amount);
-  const prevPeriodRevenue = roundMoney(prevPeriodRevenueAgg._sum.amount);
-  const revenueGrowth = calculateGrowth(periodRevenue, prevPeriodRevenue);
+  const allTimeRevenueCollected = roundMoney(allTimePaymentAgg._sum.amount);
+  const periodRevenueCollected = roundMoney(periodPaymentAgg._sum.amount);
+  const prevPeriodRevenue = roundMoney(prevPeriodPaymentAgg._sum.amount);
+  const revenueGrowth = calculateGrowth(periodRevenueCollected, prevPeriodRevenue);
 
-  // 4. MRR & ARR calculation from all currently ACTIVE subscriptions
-  const activeSubsWithPlans = await prisma.subscription.findMany({
-    where: { status: 'ACTIVE' },
+  // 4. Total Invoiced (non-cancelled invoices)
+  const invoiceBaseWhere = {
+    status: invoice_status || { not: 'CANCELLED' },
+  };
+  if (customer_id) invoiceBaseWhere.customer_id = customer_id;
+
+  const totalInvoicedAgg = await prisma.invoice.aggregate({
+    where: invoiceBaseWhere,
+    _sum: { total_amount: true },
+  });
+  const totalInvoiced = roundMoney(totalInvoicedAgg._sum.total_amount);
+
+  // Outstanding = total invoiced minus total payments collected
+  const outstanding = Math.max(0, roundMoney(totalInvoiced - allTimeRevenueCollected));
+
+  // 5. MRR & ARR calculation from all currently ACTIVE subscriptions
+  const activeSubs = await prisma.subscription.findMany({
+    where: { ...subscriptionWhere, status: 'ACTIVE' },
     include: { plan: true },
   });
 
   let calculatedMRR = 0;
-  for (const sub of activeSubsWithPlans) {
+  for (const sub of activeSubs) {
     const amount = Number(sub.total_amount) || 0;
     const periodType = sub.plan?.billing_period || 'MONTHLY';
     switch (periodType) {
@@ -190,26 +222,32 @@ export async function getOverviewMetrics(query = {}) {
   const mrr = roundMoney(calculatedMRR);
   const arr = roundMoney(mrr * 12);
 
-  // 5. Pending Payments (Invoices with DRAFT status or unpaid)
+  // 6. Pending Payments (Invoices with DRAFT or CONFIRMED status)
   const pendingInvoicesAgg = await prisma.invoice.aggregate({
-    where: { status: 'DRAFT' },
+    where: {
+      ...invoiceBaseWhere,
+      status: { in: ['DRAFT', 'CONFIRMED'] },
+    },
     _sum: { total_amount: true },
     _count: true,
   });
   const pendingPaymentsAmount = roundMoney(pendingInvoicesAgg._sum.total_amount);
   const pendingPaymentsCount = pendingInvoicesAgg._count || 0;
 
-  // 6. Overdue Invoices
+  // 7. Derived Overdue Invoices: due_date < now AND status NOT IN ('PAID', 'CANCELLED')
   const overdueInvoicesAgg = await prisma.invoice.aggregate({
-    where: { status: 'OVERDUE' },
+    where: {
+      ...invoiceBaseWhere,
+      status: { notIn: ['PAID', 'CANCELLED'] },
+      due_date: { lt: now },
+    },
     _sum: { total_amount: true },
     _count: true,
   });
   const overdueInvoicesAmount = roundMoney(overdueInvoicesAgg._sum.total_amount);
   const overdueInvoicesCount = overdueInvoicesAgg._count || 0;
 
-  // 7. Churn Rate Calculation
-  // Subscriptions closed during the period from SubscriptionStatusLog or closed subscriptions
+  // 8. Churn Rate Calculation from status logs
   const closedLogsCount = await prisma.subscriptionStatusLog.count({
     where: {
       to_status: 'CLOSED',
@@ -217,16 +255,15 @@ export async function getOverviewMetrics(query = {}) {
     },
   });
 
-  // Base subscriptions at risk: active subscriptions + closed subscriptions
   const totalBaseSubs = activeSubscriptions + closedLogsCount;
   const churnRate = totalBaseSubs > 0 ? Number(((closedLogsCount / totalBaseSubs) * 100).toFixed(2)) : 0;
 
-  // 8. Subscription Growth Rate
+  // 9. Subscription Growth
   const newSubsInPeriod = await prisma.subscription.count({
-    where: { created_at: { gte: start, lte: end } },
+    where: { ...subscriptionWhere, created_at: { gte: start, lte: end } },
   });
   const newSubsPrevPeriod = await prisma.subscription.count({
-    where: { created_at: { gte: prevStart, lte: prevEnd } },
+    where: { ...subscriptionWhere, created_at: { gte: prevStart, lte: prevEnd } },
   });
   const subscriptionGrowth = calculateGrowth(newSubsInPeriod, newSubsPrevPeriod);
   const customerGrowth = calculateGrowth(newCustomersInPeriod, newCustomersPrevPeriod);
@@ -243,9 +280,12 @@ export async function getOverviewMetrics(query = {}) {
       customerGrowth,
       activeSubscriptions,
       subscriptionGrowth,
-      totalRevenue: allTimeRevenue,
-      periodRevenue,
+      revenue_collected: allTimeRevenueCollected,
+      totalRevenue: allTimeRevenueCollected, // legacy key compatibility
+      periodRevenue: periodRevenueCollected,
       revenueGrowth,
+      total_invoiced: totalInvoiced,
+      outstanding,
       mrr,
       arr,
       pendingPayments: {
@@ -265,14 +305,17 @@ export async function getOverviewMetrics(query = {}) {
  * 2. REVENUE ANALYTICS
  */
 export async function getRevenueAnalytics(query = {}) {
-  const { period = '30d', startDate, endDate } = query;
+  const { period = '30d', startDate, endDate, customer_id } = query;
   const { start, end, prevStart, prevEnd } = resolveDateFilter(period, startDate, endDate);
+  const now = new Date();
 
-  // Fetch payments in range
+  const paymentWhere = {
+    payment_date: { gte: start, lte: end },
+  };
+  if (customer_id) paymentWhere.invoice = { customer_id };
+
   const payments = await prisma.payment.findMany({
-    where: {
-      payment_date: { gte: start, lte: end },
-    },
+    where: paymentWhere,
     include: {
       invoice: {
         include: {
@@ -285,10 +328,10 @@ export async function getRevenueAnalytics(query = {}) {
     orderBy: { payment_date: 'asc' },
   });
 
-  // Fetch previous period payments for MoM comparison
   const prevPayments = await prisma.payment.findMany({
     where: {
       payment_date: { gte: prevStart, lte: prevEnd },
+      ...(customer_id ? { invoice: { customer_id } } : {}),
     },
   });
 
@@ -296,11 +339,10 @@ export async function getRevenueAnalytics(query = {}) {
   const prevRevenue = roundMoney(prevPayments.reduce((acc, p) => acc + Number(p.amount), 0));
   const momGrowth = calculateGrowth(currentRevenue, prevRevenue);
 
-  // A. Revenue Trend Timeline (Daily / Monthly)
+  // A. Revenue Trend Timeline
   const timelineMap = new Map();
   for (const p of payments) {
-    const d = new Date(p.payment_date);
-    const key = d.toISOString().split('T')[0]; // YYYY-MM-DD
+    const key = new Date(p.payment_date).toISOString().split('T')[0];
     const existing = timelineMap.get(key) || { date: key, revenue: 0, count: 0 };
     existing.revenue = roundMoney(existing.revenue + Number(p.amount));
     existing.count += 1;
@@ -322,10 +364,10 @@ export async function getRevenueAnalytics(query = {}) {
     percentage: currentRevenue > 0 ? Number(((revenue / currentRevenue) * 100).toFixed(1)) : 0,
   }));
 
-  // C. Revenue by Payment Method
+  // C. Revenue by Payment Method (aligned with CARD, UPI, BANK_TRANSFER, CASH, CHEQUE)
   const methodMap = new Map();
   for (const p of payments) {
-    const method = p.payment_method || 'OTHER';
+    const method = p.payment_method || 'CASH';
     const amount = Number(p.amount) || 0;
     const current = methodMap.get(method) || { method, count: 0, total: 0 };
     current.count += 1;
@@ -337,14 +379,20 @@ export async function getRevenueAnalytics(query = {}) {
     percentage: currentRevenue > 0 ? Number(((item.total / currentRevenue) * 100).toFixed(1)) : 0,
   }));
 
-  // D. Paid vs Pending vs Overdue Invoices
-  const invoicesInRange = await prisma.invoice.groupBy({
-    by: ['status'],
-    where: {
-      created_at: { gte: start, lte: end },
+  // D. Paid vs Pending vs Derived Overdue
+  const invoiceWhere = {
+    created_at: { gte: start, lte: end },
+    ...(customer_id ? { customer_id } : {}),
+  };
+
+  const invoices = await prisma.invoice.findMany({
+    where: invoiceWhere,
+    select: {
+      id: true,
+      status: true,
+      due_date: true,
+      total_amount: true,
     },
-    _sum: { total_amount: true },
-    _count: true,
   });
 
   const invoiceStatusSummary = {
@@ -353,19 +401,22 @@ export async function getRevenueAnalytics(query = {}) {
     overdue: { amount: 0, count: 0 },
   };
 
-  for (const item of invoicesInRange) {
-    const amt = roundMoney(item._sum.total_amount);
-    const cnt = item._count || 0;
-    if (item.status === 'PAID') {
-      invoiceStatusSummary.paid = { amount: amt, count: cnt };
-    } else if (item.status === 'DRAFT') {
-      invoiceStatusSummary.pending = { amount: amt, count: cnt };
-    } else if (item.status === 'OVERDUE') {
-      invoiceStatusSummary.overdue = { amount: amt, count: cnt };
+  for (const inv of invoices) {
+    const amt = Number(inv.total_amount) || 0;
+    if (inv.status === 'PAID') {
+      invoiceStatusSummary.paid.amount = roundMoney(invoiceStatusSummary.paid.amount + amt);
+      invoiceStatusSummary.paid.count++;
+    } else if (new Date(inv.due_date) < now && inv.status !== 'CANCELLED') {
+      // Derived overdue
+      invoiceStatusSummary.overdue.amount = roundMoney(invoiceStatusSummary.overdue.amount + amt);
+      invoiceStatusSummary.overdue.count++;
+    } else if (inv.status !== 'CANCELLED') {
+      invoiceStatusSummary.pending.amount = roundMoney(invoiceStatusSummary.pending.amount + amt);
+      invoiceStatusSummary.pending.count++;
     }
   }
 
-  // E. Month-over-Month Revenue Growth History (last 6 months)
+  // E. 6-Month Monthly History
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
   sixMonthsAgo.setDate(1);
@@ -384,7 +435,6 @@ export async function getRevenueAnalytics(query = {}) {
     monthlyMap.set(monthKey, roundMoney(cur + Number(p.amount)));
   }
 
-  // Ensure all 6 consecutive months are present
   const monthlyRevenueHistory = [];
   let prevMonthRev = 0;
   for (let i = 5; i >= 0; i--) {
@@ -421,14 +471,17 @@ export async function getRevenueAnalytics(query = {}) {
  * 3. SUBSCRIPTION ANALYTICS
  */
 export async function getSubscriptionAnalytics(query = {}) {
-  const { period = '30d', startDate, endDate } = query;
+  const { period = '30d', startDate, endDate, customer_id, plan_id } = query;
   const { start, end } = resolveDateFilter(period, startDate, endDate);
-
   const now = new Date();
 
-  // A. Status Breakdown
+  const subFilter = {};
+  if (customer_id) subFilter.customer_id = customer_id;
+  if (plan_id) subFilter.plan_id = plan_id;
+
   const subscriptionsByStatus = await prisma.subscription.groupBy({
     by: ['status'],
+    where: subFilter,
     _count: true,
   });
 
@@ -443,27 +496,35 @@ export async function getSubscriptionAnalytics(query = {}) {
     statusCounts[s.status] = s._count || 0;
   }
 
-  // Count expired (ACTIVE or past expiry)
+  // Count expired subscriptions
   const expiredCount = await prisma.subscription.count({
     where: {
+      ...subFilter,
       expiry_date: { lt: now },
       status: { not: 'CLOSED' },
     },
   });
 
-  // Count past-due (subscriptions with OVERDUE invoices)
+  // Count past-due subscriptions (derived: due_date < now AND status NOT IN ('PAID', 'CANCELLED'))
   const pastDueSubs = await prisma.subscription.count({
     where: {
+      ...subFilter,
       invoices: {
-        some: { status: 'OVERDUE' },
+        some: {
+          due_date: { lt: now },
+          status: { notIn: ['PAID', 'CANCELLED'] },
+        },
       },
     },
   });
 
-  // B. New Subscriptions over time (within period)
+  // New subscriptions timeline
   const subscriptions = await prisma.subscription.findMany({
-    where: { created_at: { gte: start, lte: end } },
-    select: { id: true, created_at: true, status: true, total_amount: true },
+    where: {
+      ...subFilter,
+      created_at: { gte: start, lte: end },
+    },
+    select: { id: true, created_at: true },
     orderBy: { created_at: 'asc' },
   });
 
@@ -477,7 +538,7 @@ export async function getSubscriptionAnalytics(query = {}) {
     count,
   }));
 
-  // C. Cancellations over time (from SubscriptionStatusLog)
+  // Cancellations timeline
   const cancellationLogs = await prisma.subscriptionStatusLog.findMany({
     where: {
       to_status: 'CLOSED',
@@ -496,19 +557,15 @@ export async function getSubscriptionAnalytics(query = {}) {
     count,
   }));
 
-  // D. Plan Popularity
+  // Plan popularity
   const plans = await prisma.plan.findMany({
+    where: plan_id ? { id: plan_id } : {},
     include: {
       _count: {
-        select: {
-          subscriptions: true,
-        },
+        select: { subscriptions: true },
       },
       subscriptions: {
-        select: {
-          status: true,
-          total_amount: true,
-        },
+        select: { status: true, total_amount: true },
       },
     },
   });
@@ -532,7 +589,7 @@ export async function getSubscriptionAnalytics(query = {}) {
     };
   });
 
-  // E. Renewal Trends
+  // Renewal trends
   const renewalLogs = await prisma.subscriptionStatusLog.findMany({
     where: {
       reason: { contains: 'Renew', mode: 'insensitive' },
@@ -581,19 +638,20 @@ export async function getSubscriptionAnalytics(query = {}) {
  * 4. CUSTOMER ANALYTICS
  */
 export async function getCustomerAnalytics(query = {}) {
-  const { period = '30d', startDate, endDate } = query;
+  const { period = '30d', startDate, endDate, customer_id } = query;
   const { start, end } = resolveDateFilter(period, startDate, endDate);
 
+  const customerWhere = customer_id ? { id: customer_id } : {};
+
   const [totalCustomers, newCustomersInPeriod] = await Promise.all([
-    prisma.customer.count(),
+    prisma.customer.count({ where: customerWhere }),
     prisma.customer.count({
-      where: { created_at: { gte: start, lte: end } },
+      where: { ...customerWhere, created_at: { gte: start, lte: end } },
     }),
   ]);
 
-  // A. Customer Growth Chart (Cumulative and daily in period)
   const customersInPeriod = await prisma.customer.findMany({
-    where: { created_at: { gte: start, lte: end } },
+    where: { ...customerWhere, created_at: { gte: start, lte: end } },
     select: { id: true, created_at: true },
     orderBy: { created_at: 'asc' },
   });
@@ -608,8 +666,8 @@ export async function getCustomerAnalytics(query = {}) {
     count,
   }));
 
-  // B. Customer Lifetime Revenue and Top Customers
   const allCustomers = await prisma.customer.findMany({
+    where: customerWhere,
     include: {
       subscriptions: {
         select: { id: true, status: true },
@@ -626,7 +684,7 @@ export async function getCustomerAnalytics(query = {}) {
 
   const customerStats = allCustomers.map((cust) => {
     let totalRevenue = 0;
-    let invoicesCount = cust.invoices.length;
+    const invoicesCount = cust.invoices.length;
     for (const inv of cust.invoices) {
       for (const p of inv.payments) {
         totalRevenue += Number(p.amount) || 0;
@@ -648,12 +706,10 @@ export async function getCustomerAnalytics(query = {}) {
     };
   });
 
-  // Top Customers by Revenue
   const topCustomers = [...customerStats]
     .sort((a, b) => b.totalRevenue - a.totalRevenue)
     .slice(0, 10);
 
-  // C. Customer Segmentation
   const segmentation = {
     enterprise: { label: 'Enterprise ($1,000+)', count: 0, revenue: 0 },
     midMarket: { label: 'Mid-Market ($300 - $999)', count: 0, revenue: 0 },
@@ -676,7 +732,6 @@ export async function getCustomerAnalytics(query = {}) {
     }
   }
 
-  // D. Customer Subscription Distribution
   const subscriptionDistribution = {
     zero: 0,
     one: 0,
