@@ -30,20 +30,39 @@ export function extendDateByPeriod(baseDate, billingPeriod) {
  * Sequence-safe subscription number generation: SUB-000001
  */
 async function generateNextSubscriptionNumber(tx) {
-  const latest = await tx.subscription.findFirst({
+  const latestSubs = await tx.subscription.findMany({
+    take: 100,
     orderBy: { created_at: 'desc' },
     select: { number: true },
   });
 
-  let nextNum = 1;
-  if (latest?.number && latest.number.startsWith('SUB-')) {
-    const parsed = parseInt(latest.number.replace('SUB-', ''), 10);
-    if (!isNaN(parsed)) {
-      nextNum = parsed + 1;
+  let maxSeq = 0;
+  for (const s of latestSubs) {
+    const match = s.number?.match(/\d+$/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      if (!isNaN(num) && num > maxSeq) {
+        maxSeq = num;
+      }
     }
   }
 
-  return `SUB-${String(nextNum).padStart(6, '0')}`;
+  let nextNum = maxSeq + 1;
+  let candidate = `SUB-${String(nextNum).padStart(6, '0')}`;
+
+  let attempts = 0;
+  while (attempts < 50) {
+    const exists = await tx.subscription.findUnique({
+      where: { number: candidate },
+      select: { id: true },
+    });
+    if (!exists) return candidate;
+    nextNum++;
+    candidate = `SUB-${String(nextNum).padStart(6, '0')}`;
+    attempts++;
+  }
+
+  return candidate;
 }
 
 /**

@@ -10,6 +10,7 @@
     "migrate": "npx prisma migrate dev",
     "generate": "npx prisma generate",
     "seed": "node src/database/seed.js",
+    "seed:perf": "node src/database/seedPerf.js",
     "db:push": "npx prisma db push"
   },
   "dependencies": {
