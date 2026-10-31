@@ -13,7 +13,7 @@ import { UserPlus, Search, Edit2, ExternalLink, Users, Building, Mail, Phone } f
 
 export function CustomerListPage() {
   const [customers, setCustomers] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +30,7 @@ export function CustomerListPage() {
       try {
         const response = await customersApi.list({
           page,
-          limit: 10,
+          limit: 20,
           search: searchQuery,
           sort: 'created_at:desc',
         });

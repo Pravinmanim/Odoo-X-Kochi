@@ -98,22 +98,37 @@ apiRouter.post(
 // Quotation templates listing endpoint
 apiRouter.get('/templates', authenticate, async (req, res, next) => {
     try {
-        const templates = await prisma.quotationTemplate.findMany({
-            include: {
-                lines: {
-                    include: {
-                        product: true,
-                        variant: true,
+        const page = Math.max(1, parseInt(req.query.page || '1', 10));
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
+        const skip = (page - 1) * limit;
+
+        const [total, templates] = await Promise.all([
+            prisma.quotationTemplate.count(),
+            prisma.quotationTemplate.findMany({
+                skip,
+                take: limit,
+                include: {
+                    lines: {
+                        include: {
+                            product: true,
+                            variant: true,
+                        },
                     },
                 },
-            },
-            orderBy: {
-                created_at: 'desc',
-            },
-        });
+                orderBy: {
+                    created_at: 'desc',
+                },
+            }),
+        ]);
+
+        const totalPages = Math.ceil(total / limit) || 1;
 
         res.status(200).json({
-            data: templates
+            data: templates,
+            total,
+            page,
+            limit,
+            totalPages,
         });
     } catch (err) {
         next(err);

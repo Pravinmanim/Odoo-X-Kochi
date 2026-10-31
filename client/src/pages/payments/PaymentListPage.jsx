@@ -20,7 +20,7 @@ const METHOD_LABELS = {
 
 export default function PaymentListPage() {
   const [payments, setPayments] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [methodFilter, setMethodFilter] = useState('');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -34,7 +34,7 @@ export default function PaymentListPage() {
       try {
         const response = await paymentsApi.list({
           page,
-          limit: 10,
+          limit: 20,
           search: searchQuery || undefined,
           payment_method: method || undefined,
         });

@@ -27,7 +27,7 @@ export function SubscriptionListPage() {
   const customerIdFilter = searchParams.get('customer_id') || '';
 
   const [subscriptions, setSubscriptions] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -42,7 +42,7 @@ export function SubscriptionListPage() {
       try {
         const response = await subscriptionsApi.list({
           page,
-          limit: 10,
+          limit: 20,
           search: searchQuery,
           status: status || undefined,
           customer_id: customerIdFilter || undefined,

@@ -35,7 +35,7 @@ export default function InvoiceListPage() {
   const customerIdFilter = searchParams.get('customer_id') || '';
 
   const [invoices, setInvoices] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [statusFilter, setStatusFilter] = useState('');
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [search, setSearch] = useState('');
@@ -52,7 +52,7 @@ export default function InvoiceListPage() {
       try {
         const response = await invoicesApi.list({
           page,
-          limit: 10,
+          limit: 20,
           search: searchQuery || undefined,
           status: status || undefined,
           is_overdue: overdue ? 'true' : undefined,

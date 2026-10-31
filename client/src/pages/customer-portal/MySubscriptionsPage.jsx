@@ -1,35 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { subscriptionsApi } from '../../api/subscriptions.js';
 import { getErrorMessage } from '../../api/client.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import Table, { TableRow, TableCell } from '../../components/Table.jsx';
 import Badge from '../../components/Badge.jsx';
-import Button from '../../components/Button.jsx';
+import Pagination from '../../components/Pagination.jsx';
 import Loader from '../../components/Loader.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
 import { CalendarCheck, ExternalLink, ShieldCheck } from 'lucide-react';
 
 export function MySubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
   const { error: toastError } = useToast();
 
-  useEffect(() => {
-    async function loadMySubscriptions() {
+  const loadMySubscriptions = useCallback(
+    async (page = 1) => {
       setIsLoading(true);
       try {
-        const response = await subscriptionsApi.listMy();
+        const response = await subscriptionsApi.listMy({ page, limit: 20 });
         setSubscriptions(response.data || []);
+        if (response.totalPages) {
+          setPagination({
+            page: response.page,
+            limit: response.limit,
+            total: response.total,
+            totalPages: response.totalPages,
+          });
+        }
       } catch (err) {
         toastError(getErrorMessage(err));
       } finally {
         setIsLoading(false);
       }
-    }
+    },
+    [toastError]
+  );
 
-    loadMySubscriptions();
-  }, [toastError]);
+  useEffect(() => {
+    loadMySubscriptions(1);
+  }, [loadMySubscriptions]);
 
   return (
     <div className="space-y-6">
@@ -37,7 +49,7 @@ export function MySubscriptionsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">My Subscriptions</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Review your enrolled services, active billing plans, renewal milestones, and invoices
+          Review your enrolled services, active billing plans, renewal milestones, and invoices (20 per page)
         </p>
       </div>
 
@@ -82,12 +94,10 @@ export function MySubscriptionsPage() {
 
                 {/* Plan */}
                 <TableCell>
-                  <span className="font-semibold text-slate-900">{sub.plan?.name || 'Custom Plan'}</span>
-                  {sub.plan && (
-                    <span className="block text-xs text-slate-500 font-mono">
-                      {sub.plan.billing_period}
-                    </span>
-                  )}
+                  <div className="font-medium text-slate-900">{sub.plan?.name || 'Custom Plan'}</div>
+                  <div className="text-xs text-slate-500 capitalize">
+                    {sub.plan?.billing_period?.toLowerCase() || 'monthly'} billing
+                  </div>
                 </TableCell>
 
                 {/* Status */}
@@ -96,31 +106,44 @@ export function MySubscriptionsPage() {
                 </TableCell>
 
                 {/* Total */}
-                <TableCell align="right" className="font-mono font-bold text-slate-900">
-                  ${Number(sub.total_amount).toFixed(2)}
-                </TableCell>
-
-                {/* Start Date */}
-                <TableCell className="text-xs text-slate-500">
-                  {sub.start_date ? new Date(sub.start_date).toLocaleDateString() : '—'}
-                </TableCell>
-
-                {/* Next Billing */}
-                <TableCell className="text-xs text-slate-500">
-                  {sub.next_billing_date ? new Date(sub.next_billing_date).toLocaleDateString() : '—'}
-                </TableCell>
-
-                {/* Action */}
                 <TableCell align="right">
-                  <Link to={`/subscriptions/${sub.id}`}>
-                    <Button variant="secondary" size="sm">
-                      View Details
-                    </Button>
+                  <span className="font-semibold text-slate-900 font-mono">
+                    ${Number(sub.total_amount).toFixed(2)}
+                  </span>
+                </TableCell>
+
+                {/* Dates */}
+                <TableCell>
+                  <span className="text-xs text-slate-700">
+                    {sub.start_date ? new Date(sub.start_date).toLocaleDateString() : '—'}
+                  </span>
+                </TableCell>
+
+                <TableCell>
+                  <span className="text-xs text-slate-700">
+                    {sub.next_billing_date ? new Date(sub.next_billing_date).toLocaleDateString() : '—'}
+                  </span>
+                </TableCell>
+
+                <TableCell align="right">
+                  <Link
+                    to={`/subscriptions/${sub.id}`}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline px-2.5 py-1 rounded bg-indigo-50 hover:bg-indigo-100 transition"
+                  >
+                    View
                   </Link>
                 </TableCell>
               </TableRow>
             ))}
           </Table>
+
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
+            pageSize={pagination.limit}
+            onPageChange={(page) => loadMySubscriptions(page)}
+          />
         </div>
       )}
     </div>

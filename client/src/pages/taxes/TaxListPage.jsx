@@ -21,7 +21,7 @@ export default function TaxListPage() {
   const isAdmin = user?.role === 'ADMIN';
 
   const [taxes, setTaxes] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +41,7 @@ export default function TaxListPage() {
       try {
         const response = await taxesApi.list({
           page,
-          limit: 10,
+          limit: 20,
           search: searchQuery,
           sort: 'created_at:desc',
         });

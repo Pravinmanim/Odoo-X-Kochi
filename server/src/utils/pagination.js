@@ -4,7 +4,7 @@
  */
 export function parsePaginationParams(query, defaultSort = { created_at: 'desc' }) {
   const page = Math.max(1, parseInt(query.page || '1', 10));
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit || '10', 10)));
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit || '20', 10)));
   const skip = (page - 1) * limit;
   const search = typeof query.search === 'string' ? query.search.trim() : '';
 

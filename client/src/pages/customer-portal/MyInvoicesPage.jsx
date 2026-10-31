@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { invoicesApi } from '../../api/invoices.js';
 import { getErrorMessage } from '../../api/client.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import Table, { TableRow, TableCell } from '../../components/Table.jsx';
 import Badge from '../../components/Badge.jsx';
+import Pagination from '../../components/Pagination.jsx';
 import Loader from '../../components/Loader.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
 import { FileText, Download } from 'lucide-react';
@@ -17,25 +18,37 @@ const STATUS_VARIANTS = {
 
 export default function MyInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState(null);
   const { success, error: toastError } = useToast();
 
-  useEffect(() => {
-    async function loadMyInvoices() {
+  const loadMyInvoices = useCallback(
+    async (page = 1) => {
       setIsLoading(true);
       try {
-        const response = await invoicesApi.listMy();
+        const response = await invoicesApi.listMy({ page, limit: 20 });
         setInvoices(response.data || []);
+        if (response.totalPages) {
+          setPagination({
+            page: response.page,
+            limit: response.limit,
+            total: response.total,
+            totalPages: response.totalPages,
+          });
+        }
       } catch (err) {
         toastError(getErrorMessage(err));
       } finally {
         setIsLoading(false);
       }
-    }
+    },
+    [toastError]
+  );
 
-    loadMyInvoices();
-  }, [toastError]);
+  useEffect(() => {
+    loadMyInvoices(1);
+  }, [loadMyInvoices]);
 
   const handleDownloadPdf = async (invoice) => {
     setDownloadingId(invoice.id);
@@ -55,7 +68,7 @@ export default function MyInvoicesPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">My Invoices</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Review your invoice history, payment receipts, and download statement PDFs
+          Review your invoice history, payment receipts, and download statement PDFs (20 per page)
         </p>
       </div>
 
@@ -152,6 +165,14 @@ export default function MyInvoicesPage() {
               </TableRow>
             ))}
           </Table>
+
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
+            pageSize={pagination.limit}
+            onPageChange={(page) => loadMyInvoices(page)}
+          />
         </div>
       )}
     </div>
