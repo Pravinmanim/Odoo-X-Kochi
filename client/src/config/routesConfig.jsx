@@ -18,6 +18,10 @@ import CustomerDetailPage from '../pages/customers/CustomerDetailPage.jsx';
 import SubscriptionListPage from '../pages/subscriptions/SubscriptionListPage.jsx';
 import SubscriptionDetailPage from '../pages/subscriptions/SubscriptionDetailPage.jsx';
 import MySubscriptionsPage from '../pages/customer-portal/MySubscriptionsPage.jsx';
+import MyInvoicesPage from '../pages/customer-portal/MyInvoicesPage.jsx';
+import InvoiceListPage from '../pages/invoices/InvoiceListPage.jsx';
+import InvoiceDetailPage from '../pages/invoices/InvoiceDetailPage.jsx';
+import PaymentListPage from '../pages/payments/PaymentListPage.jsx';
 import PlaceholderPage from '../pages/PlaceholderPage.jsx';
 import Loader from '../components/Loader.jsx';
 
@@ -182,10 +186,15 @@ export const appRoutes = [
     path: '/invoices',
     element: (
       <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
-        <PlaceholderPage
-          title="Invoices"
-          description="Manage recurring billing invoices, automated period calculations, and tax lines."
-        />
+        <InvoiceListPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/invoices/:id',
+    element: (
+      <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
+        <InvoiceDetailPage />
       </ProtectedRoute>
     ),
   },
@@ -193,10 +202,7 @@ export const appRoutes = [
     path: '/payments',
     element: (
       <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
-        <PlaceholderPage
-          title="Payments"
-          description="Record incoming subscription payments, payment methods, and transaction receipts."
-        />
+        <PaymentListPage />
       </ProtectedRoute>
     ),
   },
@@ -230,10 +236,7 @@ export const appRoutes = [
     path: '/my-invoices',
     element: (
       <ProtectedRoute allowedRoles={['CUSTOMER']}>
-        <PlaceholderPage
-          title="My Invoices"
-          description="View and download invoice history, due dates, and payment receipts."
-        />
+        <MyInvoicesPage />
       </ProtectedRoute>
     ),
   },
