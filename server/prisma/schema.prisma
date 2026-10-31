@@ -27,8 +27,9 @@ enum SubscriptionStatus {
 
 enum InvoiceStatus {
   DRAFT
+  CONFIRMED
   PAID
-  OVERDUE
+  CANCELLED
 }
 
 enum BillingPeriod {
@@ -44,11 +45,11 @@ enum DiscountType {
 }
 
 enum PaymentMethod {
-  CREDIT_CARD
+  CARD
+  UPI
   BANK_TRANSFER
   CASH
-  PAYPAL
-  STRIPE
+  CHEQUE
 }
 
 // ----------------------------------------------------
@@ -237,6 +238,7 @@ model Subscription {
   invoices              Invoice[]
 
   @@index([status, customer_id, next_billing_date])
+  @@index([status, next_billing_date])
   @@map("subscriptions")
 }
 
@@ -334,6 +336,7 @@ model Payment {
   payment_date    DateTime      @default(now())
   transaction_ref String?
   notes           String?
+  recorded_by     String?
   created_at      DateTime      @default(now())
 
   @@index([invoice_id, payment_date])
