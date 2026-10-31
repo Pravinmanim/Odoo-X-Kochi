@@ -8,6 +8,7 @@ import SignupPage from '../pages/auth/SignupPage.jsx';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.jsx';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage.jsx';
 import DashboardPage from '../pages/dashboard/DashboardPage.jsx';
+import ReportsPage from '../pages/reports/ReportsPage.jsx';
 import ProductListPage from '../pages/products/ProductListPage.jsx';
 import PlanListPage from '../pages/plans/PlanListPage.jsx';
 import TemplateListPage from '../pages/templates/TemplateListPage.jsx';
@@ -106,7 +107,7 @@ export const appRoutes = [
     path: '/reports',
     element: (
       <ProtectedRoute allowedRoles={['ADMIN', 'STAFF']}>
-        <DashboardPage />
+        <ReportsPage />
       </ProtectedRoute>
     ),
   },
