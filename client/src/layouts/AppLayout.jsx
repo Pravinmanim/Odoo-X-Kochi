@@ -60,7 +60,7 @@ export function AppLayout() {
     : 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row antialiased">
+    <div className="h-screen w-screen bg-slate-50 flex flex-col md:flex-row antialiased overflow-hidden">
       {/* Mobile Backdrop */}
       {mobileMenuOpen && (
         <div
@@ -69,14 +69,14 @@ export function AppLayout() {
         />
       )}
 
-      {/* Sidebar Navigation */}
+      {/* Fixed Sidebar: Strictly Locked to Screen Length (h-screen) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-slate-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-950 text-white border-r border-slate-800/80 shadow-2xl transition-all duration-300 ease-in-out md:static ${
+        className={`fixed inset-y-0 left-0 z-50 md:sticky md:top-0 h-screen shrink-0 flex flex-col bg-slate-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-950 text-white border-r border-slate-800/80 shadow-2xl transition-[width,transform] duration-300 ease-in-out ${
           mobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'
         } ${isCollapsed ? 'md:w-20' : 'md:w-64'}`}
       >
-        {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-4 sm:px-5 border-b border-slate-800/80">
+        {/* Brand Header (Fixed Top of Sidebar) */}
+        <div className="h-16 shrink-0 flex items-center justify-between px-4 sm:px-5 border-b border-slate-800/80">
           <Link
             to="/"
             className="flex items-center gap-3 overflow-hidden group focus:outline-none"
@@ -123,7 +123,7 @@ export function AppLayout() {
         </div>
 
         {/* Section Label */}
-        <div className="px-4 pt-4 pb-1">
+        <div className="shrink-0 px-4 pt-4 pb-1">
           <div
             className={`text-[10px] font-bold text-slate-400 uppercase tracking-wider transition-opacity duration-200 ${
               isCollapsed ? 'md:text-center md:tracking-normal' : 'px-3'
@@ -139,7 +139,7 @@ export function AppLayout() {
           </div>
         </div>
 
-        {/* Navigation Items */}
+        {/* Scrollable Navigation Items Inside Sidebar */}
         <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 custom-scrollbar">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -192,7 +192,7 @@ export function AppLayout() {
         </nav>
 
         {/* Quick Collapse Footer Bar (Desktop) */}
-        <div className="hidden md:flex items-center justify-between px-3.5 py-2.5 border-t border-slate-800/60 bg-slate-950/30">
+        <div className="shrink-0 hidden md:flex items-center justify-between px-3.5 py-2.5 border-t border-slate-800/60 bg-slate-950/30">
           <button
             onClick={toggleCollapse}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors ${
@@ -215,7 +215,7 @@ export function AppLayout() {
         </div>
 
         {/* User Card in Sidebar Footer */}
-        <div className="p-3 border-t border-slate-800/80 bg-slate-950/60">
+        <div className="shrink-0 p-3 border-t border-slate-800/80 bg-slate-950/60">
           <div
             className={`flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-800/40 transition-colors ${
               isCollapsed ? 'md:justify-center' : ''
@@ -244,10 +244,10 @@ export function AppLayout() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-        {/* Floating Top Header */}
-        <header className="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
+      {/* Main Content Area: Strictly Locked to Screen Length */}
+      <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
+        {/* Fixed Top Navbar */}
+        <header className="h-16 shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 flex items-center justify-between z-30 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
           <div className="flex items-center gap-3">
             {/* Mobile Hamburger */}
             <button
@@ -348,9 +348,11 @@ export function AppLayout() {
           </div>
         </header>
 
-        {/* Page Content Viewport */}
-        <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">
-          <Outlet />
+        {/* Scrollable Viewport: ONLY this area scrolls */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8">
+          <div className="max-w-7xl w-full mx-auto pb-12">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
