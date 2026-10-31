@@ -147,7 +147,7 @@ async function runAnalyticsTests() {
     assert(Array.isArray(revData.revenueByPlan), 'Revenue by subscription plan returned');
     assert(revData.revenueByPlan.length > 0, `Revenue by plan contains data (${revData.revenueByPlan.map(p => p.planName).join(', ')})`);
     assert(Array.isArray(revData.revenueByPaymentMethod), 'Revenue by payment method returned');
-    assert(revData.revenueByPaymentMethod.some(m => m.method === 'STRIPE' || m.method === 'CREDIT_CARD' || m.method === 'BANK_TRANSFER'), 'Payment methods accurately grouped');
+    assert(revData.revenueByPaymentMethod.some(m => m.method === 'CARD' || m.method === 'UPI' || m.method === 'BANK_TRANSFER' || m.method === 'CASH' || m.method === 'CHEQUE'), 'Payment methods accurately grouped');
     assert(revData.invoiceStatusSummary.paid.amount > 0, 'Paid invoices summary calculated');
     assert(revData.invoiceStatusSummary.overdue.amount > 0, 'Overdue invoices summary calculated');
     assert(Array.isArray(revData.monthlyRevenueHistory), '6-month MoM revenue history returned');
