@@ -94,3 +94,24 @@ export async function updateCustomer(id, data) {
 
   return customer;
 }
+
+export async function deleteCustomer(id) {
+  await getCustomerById(id);
+
+  const [subCount, invoiceCount] = await Promise.all([
+    prisma.subscription.count({ where: { customer_id: id } }),
+    prisma.invoice.count({ where: { customer_id: id } }),
+  ]);
+
+  if (subCount > 0 || invoiceCount > 0) {
+    throw new ConflictError(
+      `Cannot delete: used by ${subCount} subscriptions and ${invoiceCount} invoices. Deactivate it instead.`
+    );
+  }
+
+  await prisma.customer.delete({
+    where: { id },
+  });
+
+  return { message: 'Customer deleted successfully.' };
+}

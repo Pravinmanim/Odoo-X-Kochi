@@ -135,4 +135,20 @@ apiRouter.get('/templates', authenticate, async (req, res, next) => {
     }
 });
 
+// Quotation templates delete endpoint
+apiRouter.delete('/templates/:id', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const template = await prisma.quotationTemplate.findUnique({ where: { id } });
+        if (!template) {
+            return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Template not found' } });
+        }
+        await prisma.templateLine.deleteMany({ where: { template_id: id } });
+        await prisma.quotationTemplate.delete({ where: { id } });
+        res.status(200).json({ message: 'Template deleted successfully.' });
+    } catch (err) {
+        next(err);
+    }
+});
+
 export default apiRouter;

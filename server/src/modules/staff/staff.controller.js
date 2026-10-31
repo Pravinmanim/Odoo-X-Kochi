@@ -23,3 +23,12 @@ export async function getStaff(req, res, next) {
   }
 }
 
+export async function deleteStaff(req, res, next) {
+  try {
+    const result = await staffService.deleteStaffMember(req.params.id, req.user?.id);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+

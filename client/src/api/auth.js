@@ -37,5 +37,10 @@ export const staffApi = {
     const res = await api.get('/staff');
     return res.data;
   },
+
+  deleteStaff: async (id) => {
+    const res = await api.delete(`/staff/${id}`);
+    return res.data;
+  },
 };
 

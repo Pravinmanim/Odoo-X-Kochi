@@ -20,4 +20,9 @@ export const customersApi = {
     const res = await api.put(`/customers/${id}`, data);
     return res.data;
   },
+
+  delete: async (id) => {
+    const res = await api.delete(`/customers/${id}`);
+    return res.data;
+  },
 };

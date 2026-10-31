@@ -8,8 +8,9 @@ import Button from '../../components/Button.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import Loader from '../../components/Loader.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import CustomerModal from './CustomerModal.jsx';
-import { UserPlus, Search, Edit2, ExternalLink, Users, Building, Mail, Phone } from 'lucide-react';
+import { UserPlus, Search, Edit2, ExternalLink, Users, Building, Mail, Phone, Trash2 } from 'lucide-react';
 
 export function CustomerListPage() {
   const [customers, setCustomers] = useState([]);
@@ -21,6 +22,8 @@ export function CustomerListPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, item: null, isDeleting: false });
 
   const { success, error: toastError } = useToast();
 
@@ -85,6 +88,24 @@ export function CustomerListPage() {
       toastError(getErrorMessage(err));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleOpenDelete = (customer) => {
+    setDeleteConfirm({ isOpen: true, item: customer, isDeleting: false });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm.item) return;
+    setDeleteConfirm((prev) => ({ ...prev, isDeleting: true }));
+    try {
+      await customersApi.delete(deleteConfirm.item.id);
+      success(`Customer "${deleteConfirm.item.name}" deleted successfully.`);
+      setDeleteConfirm({ isOpen: false, item: null, isDeleting: false });
+      fetchCustomers(pagination.page);
+    } catch (err) {
+      toastError(getErrorMessage(err));
+      setDeleteConfirm((prev) => ({ ...prev, isDeleting: false }));
     }
   };
 
@@ -210,6 +231,14 @@ export function CustomerListPage() {
                     >
                       <Edit2 className="w-4 h-4 text-slate-600 hover:text-indigo-600" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenDelete(cust)}
+                      title="Delete Customer"
+                    >
+                      <Trash2 className="w-4 h-4 text-slate-600 hover:text-rose-600" />
+                    </Button>
                     <Link to={`/customers/${cust.id}`}>
                       <Button variant="secondary" size="sm">
                         View
@@ -242,6 +271,18 @@ export function CustomerListPage() {
           isLoading={isSaving}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Customer"
+        message={`Are you sure you want to delete customer "${deleteConfirm.item?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        isDestructive={true}
+        isLoading={deleteConfirm.isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, item: null, isDeleting: false })}
+      />
     </div>
   );
 }

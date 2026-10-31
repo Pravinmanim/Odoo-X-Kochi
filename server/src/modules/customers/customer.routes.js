@@ -37,4 +37,11 @@ router.put(
   customerController.updateCustomer
 );
 
+router.delete(
+  '/:id',
+  authenticate,
+  requireRole('ADMIN'),
+  customerController.deleteCustomer
+);
+
 export default router;

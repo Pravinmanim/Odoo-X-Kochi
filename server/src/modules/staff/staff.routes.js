@@ -22,5 +22,12 @@ router.get(
   staffController.getStaff
 );
 
+router.delete(
+  '/:id',
+  authenticate,
+  requireRole('ADMIN'),
+  staffController.deleteStaff
+);
+
 export default router;
 

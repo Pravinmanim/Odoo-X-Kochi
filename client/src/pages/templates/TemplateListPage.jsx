@@ -2,17 +2,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api, { getErrorMessage } from '../../api/client.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import Table, { TableRow, TableCell } from '../../components/Table.jsx';
+import Button from '../../components/Button.jsx';
+import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import Badge from '../../components/Badge.jsx';
 import Pagination from '../../components/Pagination.jsx';
 import Loader from '../../components/Loader.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
-import { FileSpreadsheet, Clock, Layers } from 'lucide-react';
+import { FileSpreadsheet, Clock, Layers, Trash2 } from 'lucide-react';
 
 export default function TemplateListPage() {
   const [templates, setTemplates] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
-  const { error: toastError } = useToast();
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, item: null, isDeleting: false });
+  const { success, error: toastError } = useToast();
 
   const fetchTemplates = useCallback(
     async (page = 1) => {
@@ -43,6 +46,24 @@ export default function TemplateListPage() {
     fetchTemplates(1);
   }, [fetchTemplates]);
 
+  const handleOpenDelete = (template) => {
+    setDeleteConfirm({ isOpen: true, item: template, isDeleting: false });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm.item) return;
+    setDeleteConfirm((prev) => ({ ...prev, isDeleting: true }));
+    try {
+      await api.delete(`/templates/${deleteConfirm.item.id}`);
+      success(`Template "${deleteConfirm.item.name}" deleted successfully.`);
+      setDeleteConfirm({ isOpen: false, item: null, isDeleting: false });
+      fetchTemplates(pagination.page);
+    } catch (err) {
+      toastError(getErrorMessage(err));
+      setDeleteConfirm((prev) => ({ ...prev, isDeleting: false }));
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -72,6 +93,7 @@ export default function TemplateListPage() {
               { label: 'Validity Window' },
               { label: 'Packaged Lines' },
               { label: 'Estimated Total', align: 'right' },
+              { label: 'Actions', align: 'right' },
             ]}
           >
             {templates.map((tmpl) => {
@@ -109,6 +131,17 @@ export default function TemplateListPage() {
                       ${estTotal.toFixed(2)}
                     </span>
                   </TableCell>
+
+                  <TableCell align="right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenDelete(tmpl)}
+                      title="Delete Template"
+                    >
+                      <Trash2 className="w-4 h-4 text-slate-600 hover:text-rose-600" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -123,6 +156,18 @@ export default function TemplateListPage() {
           />
         </div>
       )}
+
+      {/* Delete Template Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Quotation Template"
+        message={`Are you sure you want to delete template "${deleteConfirm.item?.name}"?`}
+        confirmLabel="Delete"
+        isDestructive={true}
+        isLoading={deleteConfirm.isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, item: null, isDeleting: false })}
+      />
     </div>
   );
 }

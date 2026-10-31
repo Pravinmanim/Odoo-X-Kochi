@@ -440,7 +440,7 @@ async function seed() {
         create: [
           {
             amount: 59.00,
-            payment_method: 'STRIPE',
+            payment_method: 'CARD',
             payment_date: new Date(Date.now() - 58 * 24 * 60 * 60 * 1000),
             transaction_ref: 'ch_stripe_001',
             notes: 'Automated recurring card charge',
@@ -467,7 +467,7 @@ async function seed() {
         create: [
           {
             amount: 59.00,
-            payment_method: 'STRIPE',
+            payment_method: 'CARD',
             payment_date: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000),
             transaction_ref: 'ch_stripe_002',
           },
@@ -520,7 +520,7 @@ async function seed() {
         create: [
           {
             amount: 248.00,
-            payment_method: 'CREDIT_CARD',
+            payment_method: 'CARD',
             payment_date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
             transaction_ref: 'cc_auth_9021',
           },
@@ -546,7 +546,7 @@ async function seed() {
         create: [
           {
             amount: 248.00,
-            payment_method: 'PAYPAL',
+            payment_method: 'UPI',
             payment_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
             transaction_ref: 'pp_tx_8832',
           },
@@ -565,7 +565,7 @@ async function seed() {
       period_end: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
       subtotal: 120.00,
       total_amount: 120.00,
-      status: 'OVERDUE',
+      status: 'CONFIRMED',
       due_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
       created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
     },

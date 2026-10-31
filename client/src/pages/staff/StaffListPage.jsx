@@ -12,8 +12,9 @@ import Input from '../../components/Input.jsx';
 import Modal from '../../components/Modal.jsx';
 import Loader from '../../components/Loader.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import PasswordChecklist from '../../components/PasswordChecklist.jsx';
-import { UserPlus, ShieldCheck } from 'lucide-react';
+import { UserPlus, ShieldCheck, Trash2 } from 'lucide-react';
 
 const createStaffSchema = z.object({
   first_name: z.string().min(1, 'First name is required').trim(),
@@ -33,6 +34,7 @@ export function StaffListPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, item: null, isDeleting: false });
   const { success, error: toastError } = useToast();
 
   const {
@@ -80,6 +82,24 @@ export function StaffListPage() {
     setIsModalOpen(true);
   };
 
+  const handleOpenDelete = (member) => {
+    setDeleteConfirm({ isOpen: true, item: member, isDeleting: false });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm.item) return;
+    setDeleteConfirm((prev) => ({ ...prev, isDeleting: true }));
+    try {
+      await staffApi.deleteStaff(deleteConfirm.item.id);
+      success(`Staff member "${deleteConfirm.item.first_name} ${deleteConfirm.item.last_name}" deleted.`);
+      setDeleteConfirm({ isOpen: false, item: null, isDeleting: false });
+      loadStaff();
+    } catch (err) {
+      toastError(getErrorMessage(err));
+      setDeleteConfirm((prev) => ({ ...prev, isDeleting: false }));
+    }
+  };
+
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     setFormError('');
@@ -124,7 +144,7 @@ export function StaffListPage() {
           icon={ShieldCheck}
         />
       ) : (
-        <Table headers={['Staff Name', 'Email', 'Role', 'Created At']}>
+        <Table headers={['Staff Name', 'Email', 'Role', 'Created At', 'Actions']}>
           {staffList.map((member) => (
             <TableRow key={member.id}>
               <TableCell className="font-semibold text-slate-900">
@@ -136,6 +156,16 @@ export function StaffListPage() {
               </TableCell>
               <TableCell className="text-slate-500 text-xs">
                 {new Date(member.created_at).toLocaleDateString()}
+              </TableCell>
+              <TableCell align="right">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleOpenDelete(member)}
+                  title="Delete Staff Member"
+                >
+                  <Trash2 className="w-4 h-4 text-slate-600 hover:text-rose-600" />
+                </Button>
               </TableCell>
             </TableRow>
           ))}
@@ -204,6 +234,18 @@ export function StaffListPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Staff Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Staff Member"
+        message={`Are you sure you want to delete staff account "${deleteConfirm.item?.first_name} ${deleteConfirm.item?.last_name}" (${deleteConfirm.item?.email})?`}
+        confirmLabel="Delete"
+        isDestructive={true}
+        isLoading={deleteConfirm.isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, item: null, isDeleting: false })}
+      />
     </div>
   );
 }

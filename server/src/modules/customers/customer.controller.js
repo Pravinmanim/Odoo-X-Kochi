@@ -41,3 +41,12 @@ export async function updateCustomer(req, res, next) {
     next(error);
   }
 }
+
+export async function deleteCustomer(req, res, next) {
+  try {
+    const result = await customerService.deleteCustomer(req.params.id);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
