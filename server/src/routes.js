@@ -16,6 +16,7 @@ import * as analyticsController from './modules/analytics/analytics.controller.j
 
 import { requireRole, authenticate } from './middleware/auth.js';
 import { getMySubscriptions } from './modules/subscriptions/subscription.controller.js';
+import { runBillingEngine } from './services/billingService.js';
 
 import prisma from './database/prisma.js';
 
@@ -65,6 +66,22 @@ apiRouter.get(
     '/me/subscriptions',
     authenticate,
     getMySubscriptions
+);
+
+// Manual billing run endpoint (Admin & Staff)
+apiRouter.post(
+    '/billing/run',
+    authenticate,
+    requireRole('ADMIN', 'STAFF'),
+    async (req, res, next) => {
+        try {
+            const { batchSize, asOfDate } = req.body || {};
+            const summary = await runBillingEngine({ batchSize, asOfDate });
+            res.status(200).json({ success: true, data: summary });
+        } catch (err) {
+            next(err);
+        }
+    }
 );
 
 // Quotation templates listing endpoint
