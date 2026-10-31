@@ -10,6 +10,7 @@ import ResetPasswordPage from '../pages/auth/ResetPasswordPage.jsx';
 import DashboardPage from '../pages/dashboard/DashboardPage.jsx';
 import ProductListPage from '../pages/products/ProductListPage.jsx';
 import PlanListPage from '../pages/plans/PlanListPage.jsx';
+import TemplateListPage from '../pages/templates/TemplateListPage.jsx';
 import TaxListPage from '../pages/taxes/TaxListPage.jsx';
 import DiscountListPage from '../pages/discounts/DiscountListPage.jsx';
 import StaffListPage from '../pages/staff/StaffListPage.jsx';
@@ -19,10 +20,10 @@ import SubscriptionListPage from '../pages/subscriptions/SubscriptionListPage.js
 import SubscriptionDetailPage from '../pages/subscriptions/SubscriptionDetailPage.jsx';
 import MySubscriptionsPage from '../pages/customer-portal/MySubscriptionsPage.jsx';
 import MyInvoicesPage from '../pages/customer-portal/MyInvoicesPage.jsx';
+import ProfilePage from '../pages/customer-portal/ProfilePage.jsx';
 import InvoiceListPage from '../pages/invoices/InvoiceListPage.jsx';
 import InvoiceDetailPage from '../pages/invoices/InvoiceDetailPage.jsx';
 import PaymentListPage from '../pages/payments/PaymentListPage.jsx';
-import PlaceholderPage from '../pages/PlaceholderPage.jsx';
 import Loader from '../components/Loader.jsx';
 
 /**
@@ -143,10 +144,7 @@ export const appRoutes = [
     path: '/templates',
     element: (
       <ProtectedRoute allowedRoles={['ADMIN']}>
-        <PlaceholderPage
-          title="Quotation Templates"
-          description="Pre-packaged bundles of products and variant configurations for swift quotation drafting."
-        />
+        <TemplateListPage />
       </ProtectedRoute>
     ),
   },
@@ -244,10 +242,7 @@ export const appRoutes = [
     path: '/profile',
     element: (
       <ProtectedRoute allowedRoles={['CUSTOMER']}>
-        <PlaceholderPage
-          title="Account Profile"
-          description="Update contact information, company billing details, and address."
-        />
+        <ProfilePage />
       </ProtectedRoute>
     ),
   },
