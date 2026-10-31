@@ -271,14 +271,9 @@ export function AppLayout() {
               )}
             </button>
 
-            {/* Modern Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 ml-1">
-              <span className="inline-flex items-center gap-1.5 font-medium text-slate-500 hover:text-slate-800 transition">
-                <Layers className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Brightloop</span>
-              </span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-              <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+            {/* Page Title */}
+            <div className="flex items-center ml-1">
+              <span className="font-semibold text-slate-900 bg-slate-100/90 text-xs sm:text-sm px-2.5 py-1 rounded-lg border border-slate-200/60">
                 {currentTitle}
               </span>
             </div>
