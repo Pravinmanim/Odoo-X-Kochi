@@ -9,7 +9,13 @@ import Button from '../../components/Button.jsx';
 const customerFormSchema = z.object({
   name: z.string().min(1, 'Customer name is required').trim(),
   email: z.string().email('Valid email is required').trim(),
-  phone: z.string().optional().nullable(),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\d{10}$/, 'Phone number must be exactly 10 digits')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   company: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
@@ -100,9 +106,15 @@ export function CustomerModal({ isOpen, onClose, onSave, customer = null, isLoad
           />
           <Input
             label="Phone"
-            placeholder="+1-555-0100"
+            placeholder="10 digit number"
+            inputMode="numeric"
+            maxLength={10}
             error={errors.phone?.message}
-            {...register('phone')}
+            {...register('phone', {
+              onChange: (e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+              },
+            })}
           />
         </div>
 

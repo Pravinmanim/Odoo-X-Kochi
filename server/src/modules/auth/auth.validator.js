@@ -7,6 +7,14 @@ export const passwordSchema = z
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
   .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
 
+export const phoneSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{10}$/, 'Phone number must be exactly 10 digits')
+  .optional()
+  .nullable()
+  .or(z.literal(''));
+
 export const signupSchema = z.object({
   email: z
     .string()
@@ -15,7 +23,7 @@ export const signupSchema = z.object({
   password: passwordSchema,
   first_name: z.string().min(1, 'First name is required').trim(),
   last_name: z.string().min(1, 'Last name is required').trim(),
-  phone: z.string().optional().nullable(),
+  phone: phoneSchema,
   company: z.string().optional().nullable(),
 });
 
