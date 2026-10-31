@@ -1,9 +1,26 @@
 import { AppError } from '../utils/errors.js';
+import { ZodError } from 'zod';
 
 export function errorHandler(err, req, res, next) {
   // If headers already sent, delegate to standard Express error handler
   if (res.headersSent) {
     return next(err);
+  }
+
+  // Zod validation errors
+  if (err instanceof ZodError) {
+    const fields = {};
+    for (const issue of err.issues) {
+      const path = issue.path.join('.');
+      fields[path] = issue.message;
+    }
+    return res.status(422).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Validation failed for one or more fields.',
+        fields,
+      },
+    });
   }
 
   // AppError instance (known operational error)

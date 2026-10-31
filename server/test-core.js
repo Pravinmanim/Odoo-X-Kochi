@@ -392,8 +392,89 @@ async function runCoreTests() {
       assert(res.raw.startsWith('%PDF'), 'Output must be a valid PDF buffer');
     });
 
-    // 8. Performance Benchmarking with 5,000 Subscriptions
-    console.log('\n8. Performance Benchmarking (> 5,000 subscriptions in DB)...');
+    // 8. Strict Input Validation & Boundary Tests
+    console.log('\n8. Testing Strict Phone & Boundary Validations...');
+
+    await test('Phone: 9 digits rejected (422)', async () => {
+      const res = await request('/customers', {
+        method: 'POST',
+        token: adminToken,
+        body: { name: 'Invalid Phone 9', email: 'phone9@test.com', phone: '123456789' },
+      });
+      assert.strictEqual(res.status, 422);
+    });
+
+    await test('Phone: 11 digits rejected (422)', async () => {
+      const res = await request('/customers', {
+        method: 'POST',
+        token: adminToken,
+        body: { name: 'Invalid Phone 11', email: 'phone11@test.com', phone: '12345678901' },
+      });
+      assert.strictEqual(res.status, 422);
+    });
+
+    await test('Phone: Letters & symbols rejected (422)', async () => {
+      const res = await request('/customers', {
+        method: 'POST',
+        token: adminToken,
+        body: { name: 'Invalid Phone ABC', email: 'phoneabc@test.com', phone: '12345abcde' },
+      });
+      assert.strictEqual(res.status, 422);
+    });
+
+    await test('Phone: Exactly 10 digits accepted (201)', async () => {
+      const res = await request('/customers', {
+        method: 'POST',
+        token: adminToken,
+        body: { name: 'Valid Phone 10', email: 'phone10@test.com', phone: '9876543210' },
+      });
+      assert.strictEqual(res.status, 201);
+      // Clean up test customer
+      await prisma.customer.delete({ where: { id: res.data.data.id } });
+    });
+
+    await test('Payment amount <= 0 rejected (422)', async () => {
+      const res = await request(`/invoices/${testInvoice.id}/payments`, {
+        method: 'POST',
+        token: adminToken,
+        body: { amount: 0, payment_method: 'CARD' },
+      });
+      assert.strictEqual(res.status, 422);
+    });
+
+    // 9. Delete Conflict (409) and RBAC Protection
+    console.log('\n9. Testing Delete Conflicts & RBAC...');
+
+    await test('Staff cannot delete customers (403)', async () => {
+      const res = await request(`/customers/${customerId}`, {
+        method: 'DELETE',
+        token: customerToken,
+      });
+      assert.strictEqual(res.status, 403);
+    });
+
+    await test('Customer with active subscriptions cannot be deleted (409 Conflict)', async () => {
+      const res = await request(`/customers/${customerId}`, {
+        method: 'DELETE',
+        token: adminToken,
+      });
+      assert.strictEqual(res.status, 409);
+      assert(res.data.error.message.includes('Cannot delete'));
+    });
+
+    await test('Customer with zero subscriptions can be deleted successfully (200 OK)', async () => {
+      const cust = await prisma.customer.create({
+        data: { name: 'Delete Me Corp', email: 'deleteme@corp.test' },
+      });
+      const res = await request(`/customers/${cust.id}`, {
+        method: 'DELETE',
+        token: adminToken,
+      });
+      assert.strictEqual(res.status, 200);
+    });
+
+    // 10. Performance Benchmarking with Subscriptions
+    console.log('\n10. Performance Benchmarking (> 5,000 subscriptions in DB)...');
     const totalSubs = await prisma.subscription.count();
     const totalInvs = await prisma.invoice.count();
     console.log(`   Database dataset size: ${totalSubs} Subscriptions, ${totalInvs} Invoices.`);

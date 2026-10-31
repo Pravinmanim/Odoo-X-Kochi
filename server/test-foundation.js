@@ -76,7 +76,7 @@ async function runTests() {
         first_name: 'Test',
         last_name: 'Customer',
         company: 'Automated Inc',
-        phone: '+1-555-9876',
+        phone: '9876543210',
       }),
     });
     const signupJson = await signupRes.json();

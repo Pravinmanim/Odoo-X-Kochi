@@ -85,7 +85,7 @@ async function runSubscriptionTests() {
       body: JSON.stringify({
         name: 'Globex Corporation',
         email: 'billing@globex.test',
-        phone: '+1-555-8888',
+        phone: '9876543210',
         company: 'Globex Corp',
         city: 'Metropolis',
         country: 'USA',
