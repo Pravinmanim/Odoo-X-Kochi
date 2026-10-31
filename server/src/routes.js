@@ -10,9 +10,12 @@ import discountRoutes from './modules/discounts/discount.routes.js';
 
 import customerRoutes from './modules/customers/customer.routes.js';
 import subscriptionRoutes from './modules/subscriptions/subscription.routes.js';
+import invoiceRoutes from './modules/invoices/invoice.routes.js';
+import paymentRoutes from './modules/payments/payment.routes.js';
 import analyticsRoutes from './modules/analytics/analytics.routes.js';
 
 import * as analyticsController from './modules/analytics/analytics.controller.js';
+import { getMyInvoices } from './modules/invoices/invoice.controller.js';
 
 import { requireRole, authenticate } from './middleware/auth.js';
 import { getMySubscriptions } from './modules/subscriptions/subscription.controller.js';
@@ -41,6 +44,8 @@ apiRouter.use('/discounts', discountRoutes);
 
 apiRouter.use('/customers', customerRoutes);
 apiRouter.use('/subscriptions', subscriptionRoutes);
+apiRouter.use('/invoices', invoiceRoutes);
+apiRouter.use('/payments', paymentRoutes);
 apiRouter.use('/analytics', analyticsRoutes);
 
 // Direct shortcuts for reports
@@ -61,11 +66,17 @@ apiRouter.get(
     }
 );
 
-// Customer portal endpoint
+// Customer portal endpoints
 apiRouter.get(
     '/me/subscriptions',
     authenticate,
     getMySubscriptions
+);
+
+apiRouter.get(
+    '/me/invoices',
+    authenticate,
+    getMyInvoices
 );
 
 // Manual billing run endpoint (Admin & Staff)

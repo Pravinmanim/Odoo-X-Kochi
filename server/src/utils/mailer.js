@@ -47,5 +47,36 @@ export async function sendPasswordResetEmail({ to, resetUrl }) {
   }
 }
 
-export default { sendPasswordResetEmail };
+export async function sendInvoiceEmail({ to, invoiceNumber, customerName, totalAmount, dueDate, periodStart, periodEnd }) {
+  const mailOptions = {
+    from: `"Brightloop Billing" <${config.smtp.from}>`,
+    to,
+    subject: `Invoice ${invoiceNumber} from Brightloop`,
+    text: `Hello ${customerName},\n\nYour invoice ${invoiceNumber} for the period ${periodStart} to ${periodEnd} is available. Total amount: $${totalAmount}, Due date: ${dueDate}.\n\nThank you for choosing Brightloop!`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #4f46e5; margin-bottom: 8px;">Brightloop Subscription Invoice</h2>
+        <p style="color: #334155; font-size: 16px;">Hello <strong>${customerName}</strong>,</p>
+        <p style="color: #334155; font-size: 15px;">Your invoice <strong>${invoiceNumber}</strong> has been generated.</p>
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 16px 0;">
+          <p style="margin: 4px 0; color: #475569;"><strong>Billing Period:</strong> ${periodStart} to ${periodEnd}</p>
+          <p style="margin: 4px 0; color: #475569;"><strong>Total Due:</strong> <span style="font-size: 18px; color: #0f172a; font-weight: bold;">$${totalAmount}</span></p>
+          <p style="margin: 4px 0; color: #475569;"><strong>Due Date:</strong> ${dueDate}</p>
+        </div>
+        <p style="color: #64748b; font-size: 14px;">Thank you for your business!</p>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Invoice email sent to ${to}. Message ID: ${info.messageId}`);
+    return info;
+  } catch (error) {
+    console.warn(`[Mailer Warning] Failed to deliver invoice email via SMTP: ${error.message}`);
+    return null;
+  }
+}
+
+export default { sendPasswordResetEmail, sendInvoiceEmail };
 
